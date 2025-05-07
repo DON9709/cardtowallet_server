@@ -1,0 +1,23 @@
+{
+    "formatVersion": 1,
+    "passTypeIdentifier": "pass.com.cardtowallet.app",
+    "serialNumber": "12345678",
+    "teamIdentifier": "YOUR_TEAM_ID",
+    "organizationName": "홍길동",
+    "description": "홍길동's Membership Card",
+    "logoText": "Test",
+    "generic": {
+        "primaryFields": [
+            {
+                "key": "member",
+                "label": "회원 이름",
+                "value": "홍길동"
+            },
+            {
+                "key": "number",
+                "label": "멤버십 번호",
+                "value": "12345678"
+            }
+        ]
+    }
+}

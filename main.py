@@ -1,87 +1,85 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
-import json
-import os
-import shutil
-import subprocess
-from uuid import uuid4
+from pydantic import BaseModel
+import json, os, hashlib, subprocess, zipfile
 
 app = FastAPI()
 
-@app.get("/")
-def root():
-    return {"message": "CardtoWallet backend is running!"}
+class PassData(BaseModel):
+    name: str
+    membership_number: str
+    brand_name: str
+    expiration_date: str | None
 
 @app.post("/generate-pass")
-async def generate_pass(request: Request):
-    try:
-        data = await request.json()
-    except Exception:
-        return {"error": "Invalid JSON in request body"}
-    name = data.get("name", "Unknown")
-    number = data.get("membership_number", "0000000000")
+async def generate_pass(pass_data: PassData):
+    temp_dir = "temp_pass"
+    os.makedirs(temp_dir, exist_ok=True)
 
-    pass_id = str(uuid4())
-    folder = f"passes/{pass_id}"
-    os.makedirs(folder, exist_ok=True)
-
+    # Step 1: Create pass.json
     pass_json = {
         "formatVersion": 1,
-        "passTypeIdentifier": "pass.com.example.cardtowallet",
-        "serialNumber": pass_id,
-        "teamIdentifier": "YOUR_TEAM_ID",
-        "organizationName": "CardtoWallet",
-        "description": "CardtoWallet Membership Card",
-        "foregroundColor": "rgb(255, 255, 255)",
-        "backgroundColor": "rgb(0, 122, 255)",
-        "barcode": {
-            "message": number,
-            "format": "PKBarcodeFormatQR",
-            "messageEncoding": "iso-8859-1"
-        },
+        "passTypeIdentifier": "pass.com.cardtowallet.app",
+        "serialNumber": pass_data.membership_number,
+        "teamIdentifier": "YOUR_TEAM_ID",  # Replace with your Apple Team ID
+        "organizationName": pass_data.name,
+        "description": f"{pass_data.name}'s Membership Card",
+        "logoText": pass_data.brand_name,
         "generic": {
             "primaryFields": [
-                {"key": "name", "label": "Name", "value": name}
-            ],
-            "secondaryFields": [
-                {"key": "id", "label": "Membership No.", "value": number}
+                {
+                    "key": "member",
+                    "label": "회원 이름",
+                    "value": pass_data.name
+                },
+                {
+                    "key": "number",
+                    "label": "멤버십 번호",
+                    "value": pass_data.membership_number
+                }
             ]
         }
     }
+    if pass_data.expiration_date:
+        pass_json["expirationDate"] = pass_data.expiration_date
 
-    with open(os.path.join(folder, "pass.json"), "w") as f:
-        json.dump(pass_json, f, indent=4)
+    with open(f"{temp_dir}/pass.json", "w") as f:
+        json.dump(pass_json, f, indent=4, ensure_ascii=False)
 
-    for filename in ["icon.png", "icon@2x.png", "icon@3x.png", "logo.png"]:
-        source_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "static", filename))
-        dest_path = os.path.join(folder, filename)
-        if not os.path.exists(source_path):
-            return {"error": f"Missing required image file: {filename}"}
-        shutil.copy(source_path, dest_path)
+    # Step 2: Copy icon and logo
+    for file in ["icon.png", "logo.png"]:
+        src = f"assets/{file}" if os.path.exists(f"assets/{file}") else file
+        if os.path.exists(src):
+            with open(src, "rb") as fsrc, open(f"{temp_dir}/{file}", "wb") as fdst:
+                fdst.write(fsrc.read())
 
-    manifest_path = f"{folder}/manifest.json"
+    # Step 3: Create manifest.json
     manifest = {}
-    for filename in os.listdir(folder):
-        filepath = os.path.join(folder, filename)
-        result = subprocess.run(["shasum", "-a", "1", filepath], capture_output=True, text=True)
-        manifest[filename] = result.stdout.split()[0]
+    for filename in os.listdir(temp_dir):
+        filepath = os.path.join(temp_dir, filename)
+        with open(filepath, "rb") as f:
+            sha1 = hashlib.sha1(f.read()).hexdigest()
+            manifest[filename] = sha1
 
-    with open(manifest_path, "w") as f:
+    with open(f"{temp_dir}/manifest.json", "w") as f:
         json.dump(manifest, f, indent=4)
 
-    signature_path = f"{folder}/signature"
+    # Step 4: Sign manifest
     subprocess.run([
         "openssl", "smime", "-binary", "-sign",
         "-certfile", "certs/pass-2.cer",
         "-signer", "certs/pass_certificate.pem",
-        "-inkey", "certs/private_key.pem",
-        "-in", manifest_path,
-        "-out", signature_path,
+        "-inkey", "certs/key.pem",
+        "-in", f"{temp_dir}/manifest.json",
+        "-out", f"{temp_dir}/signature",
         "-outform", "DER"
-    ])
+    ], check=True)
 
-    pkpass_path = f"{folder}.pkpass"
-    shutil.make_archive(pkpass_path.replace(".pkpass", ""), 'zip', folder)
-    os.rename(pkpass_path.replace(".pkpass", "") + ".zip", pkpass_path)
+    # Step 5: Zip into .pkpass
+    os.makedirs("output", exist_ok=True)
+    pkpass_path = os.path.join("output", "membership.pkpass")
+    with zipfile.ZipFile(pkpass_path, "w") as zf:
+        for file in os.listdir(temp_dir):
+            zf.write(os.path.join(temp_dir, file), arcname=file)
 
-    return FileResponse(pkpass_path, media_type="application/vnd.apple.pkpass", filename="cardtowallet.pkpass")
+    return FileResponse(pkpass_path, media_type="application/vnd.apple.pkpass")
