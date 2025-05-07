@@ -1,0 +1,31 @@
+{
+    "formatVersion": 1,
+    "passTypeIdentifier": "pass.com.example.cardtowallet",
+    "serialNumber": "dfc0a2f0-df52-40fa-b517-ce88ea50811f",
+    "teamIdentifier": "YOUR_TEAM_ID",
+    "organizationName": "CardtoWallet",
+    "description": "CardtoWallet Membership Card",
+    "foregroundColor": "rgb(255, 255, 255)",
+    "backgroundColor": "rgb(0, 122, 255)",
+    "barcode": {
+        "message": "1234567890",
+        "format": "PKBarcodeFormatQR",
+        "messageEncoding": "iso-8859-1"
+    },
+    "generic": {
+        "primaryFields": [
+            {
+                "key": "name",
+                "label": "Name",
+                "value": "\ud64d\uae38\ub3d9"
+            }
+        ],
+        "secondaryFields": [
+            {
+                "key": "id",
+                "label": "Membership No.",
+                "value": "1234567890"
+            }
+        ]
+    }
+}

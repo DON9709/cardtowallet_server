@@ -1,0 +1,8 @@
+### 멤버십 카드 발급 테스트
+POST http://127.0.0.1:8000/generate-pass
+Content-Type: application/json
+
+{
+  "name": "홍길동",
+  "membership_number": "1234567890"
+}
