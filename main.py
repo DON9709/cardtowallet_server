@@ -13,18 +13,30 @@ class PassData(BaseModel):
 
 @app.post("/generate-pass")
 async def generate_pass(pass_data: PassData):
+    brand_styles = {
+        "kt": {"backgroundColor": "rgb(0,0,0)", "foregroundColor": "rgb(255,255,255)"},
+        "dalkomm": {"backgroundColor": "rgb(50,50,50)", "foregroundColor": "rgb(255,255,255)"},
+        "starbucks": {"backgroundColor": "rgb(0,100,0)", "foregroundColor": "rgb(255,255,255)"},
+        "cu": {"backgroundColor": "rgb(128,0,128)", "foregroundColor": "rgb(255,255,255)"},
+        "l.point": {"backgroundColor": "rgb(255,255,255)", "foregroundColor": "rgb(0,0,0)"}
+    }
+    brand_key = pass_data.brand_name.lower()
+    style = brand_styles.get(brand_key, {"backgroundColor": "rgb(255,255,255)", "foregroundColor": "rgb(0,0,0)"})
+
     temp_dir = "temp_pass"
     os.makedirs(temp_dir, exist_ok=True)
 
     # Step 1: Create pass.json
     pass_json = {
         "formatVersion": 1,
-        "passTypeIdentifier": "pass.com.cardtowallet.app",
+        "passTypeIdentifier": "pass.com.DonLee.CardtoWallet",
         "serialNumber": pass_data.membership_number,
-        "teamIdentifier": "YOUR_TEAM_ID",  # Replace with your Apple Team ID
+        "teamIdentifier": "2W9KP2B6Y9",  # Replace with your Apple Team ID
         "organizationName": pass_data.name,
         "description": f"{pass_data.name}'s Membership Card",
         "logoText": pass_data.brand_name,
+        "backgroundColor": style["backgroundColor"],
+        "foregroundColor": style["foregroundColor"],
         "generic": {
             "primaryFields": [
                 {
@@ -47,8 +59,9 @@ async def generate_pass(pass_data: PassData):
         json.dump(pass_json, f, indent=4, ensure_ascii=False)
 
     # Step 2: Copy icon and logo
+    brand_assets = os.path.join("assets", pass_data.brand_name)
     for file in ["icon.png", "logo.png"]:
-        src = f"assets/{file}" if os.path.exists(f"assets/{file}") else file
+        src = os.path.join(brand_assets, file)
         if os.path.exists(src):
             with open(src, "rb") as fsrc, open(f"{temp_dir}/{file}", "wb") as fdst:
                 fdst.write(fsrc.read())
@@ -67,7 +80,7 @@ async def generate_pass(pass_data: PassData):
     # Step 4: Sign manifest
     subprocess.run([
         "openssl", "smime", "-binary", "-sign",
-        "-certfile", "certs/pass-2.cer",
+        "-certfile", "certs/pass.cer",
         "-signer", "certs/pass_certificate.pem",
         "-inkey", "certs/key.pem",
         "-in", f"{temp_dir}/manifest.json",
