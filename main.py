@@ -99,8 +99,10 @@ async def generate_pass(pass_data: PassData):
     except subprocess.CalledProcessError as e:
         raise HTTPException(status_code=500, detail=f"Signature generation failed: {e}")
 
+    files = os.listdir(temp_dir)
+    print("[DEBUG] icon files found:", files)  # icon@2x, icon@3x 포함되는지
     print("[DEBUG] Files in temp_pass before zip:")
-    for file in os.listdir(temp_dir):
+    for file in files:
         filepath = os.path.join(temp_dir, file)
         print(f" - {file}: {os.path.getsize(filepath)} bytes")
 
