@@ -107,10 +107,9 @@ async def generate_pass(pass_data: PassData):
         print(f" - {file}: {os.path.getsize(filepath)} bytes")
 
     # Step 5: Zip into .pkpass
-    # Ensure output directory exists based on absolute path
-    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output")
+    # Ensure output directory exists in current working directory
+    output_dir = os.path.join(os.getcwd(), "output")
     os.makedirs(output_dir, exist_ok=True)
-    # (replaced above)
     pkpass_path = os.path.join(output_dir, "membership.pkpass")
     with zipfile.ZipFile(pkpass_path, "w") as zf:
         for file in os.listdir(temp_dir):
