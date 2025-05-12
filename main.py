@@ -38,8 +38,8 @@ async def generate_pass(pass_data: PassData):
         "passTypeIdentifier": "pass.com.DonLee.CardtoWallet",
         "serialNumber": pass_data.membership_number,
         "teamIdentifier": "2W9KP2B6Y9",  # Replace with your Apple Team ID
-        "organizationName": pass_data.name,
-        "description": f"{pass_data.name}'s Membership Card",
+        "organizationName": pass_data.name if pass_data.name.isascii() else "Test User",
+        "description": f"{pass_data.name if pass_data.name.isascii() else 'Test User'}'s Membership Card",
         "logoText": pass_data.brand_name,
         "backgroundColor": style["backgroundColor"],
         "foregroundColor": style["foregroundColor"],
